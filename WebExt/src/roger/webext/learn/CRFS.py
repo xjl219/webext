@@ -1,13 +1,12 @@
 '''
 Created on 2012-11-22
     SVM Classification Application for Extraction Target
-@author: 19
+@author: roger.luo
 '''
 
 print __doc__
 
 from sklearn.tree import DecisionTreeClassifier
-import codecs
 from roger.webext.analysis import Segment
 from roger.webext.learn import GenFeatures
 
@@ -17,27 +16,14 @@ traindata = []
 traintarget = []
 testdata = []
 
-def getKeys():
-    keywords = []
-    advs = []
-    with codecs.open('./train/foodlist.txt',encoding='utf-8') as food:
-        for line in food.readlines():
-            keywords.append(line.strip('\n'))
-    with codecs.open('./train/burden.txt',encoding='utf-8') as burden:
-        for line in burden.readlines():
-            keywords.append(line.strip('\n'))
-    with codecs.open('./train/adv.txt',encoding='utf-8') as adv:
-        for line in adv.readlines():
-            advs.append(line.strip('\n'))    
-    return [keywords,advs]
 
-with codecs.open('./train/process.txt',encoding='utf-8') as pro:
+with open('./train/process.txt') as pro:
     for line in pro.readlines():
         trainSeg.append(line.strip('\n'))
-with codecs.open('./train/noprocess.txt',encoding='utf-8') as nopro:
+with open('./train/noprocess.txt') as nopro:
     for line in nopro.readlines():
         trainNoseg.append(line.strip('\n'))  
-features = getKeys()
+features = GenFeatures.getKeys()
 trainSC = GenFeatures.genFeatures(trainSeg,features)
 trainNSC = GenFeatures.genFeatures(trainNoseg,features)
 tM = trainSC.getScoreMatrix()

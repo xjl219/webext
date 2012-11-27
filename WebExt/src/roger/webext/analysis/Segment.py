@@ -1,7 +1,7 @@
 '''
 Created on 2012-11-22
 
-@author: 19
+@author: roger.luo
 '''
 from bs4 import BeautifulSoup
 import bs4

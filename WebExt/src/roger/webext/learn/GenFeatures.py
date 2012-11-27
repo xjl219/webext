@@ -1,10 +1,27 @@
 '''
 Created on 2012-11-22
 
-@author: 19
+@author: roger.luo
 '''
-
 import re
+
+sdir = '../../../../domain_data/'
+def getKeys():
+    keywords = []
+    advs = []
+    with open(sdir+'accessory.txt') as ac:
+        for line in ac.readlines():
+            keywords.append(line.strip('\n'))
+    with open(sdir+'ingredient.txt') as ing:
+        for line in ing.readlines():
+            keywords.append(line.strip('\n'))
+    with open(sdir+'procedure.txt') as pro:
+        for line in pro.readlines():
+            advs.append(line.strip('\n'))   
+    with open(sdir+'tools.txt') as to:
+        for line in to.readlines():
+            keywords.append(line.strip('\n')) 
+    return [keywords,advs]
 
 class genFeatures():
     
@@ -77,3 +94,6 @@ class genFeatures():
                 num = num + 1
         advratio = num * 1.0 / leng
         return advratio
+    def lanFeature(self):
+        import nltk
+        print nltk.doctest

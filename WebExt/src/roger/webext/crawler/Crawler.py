@@ -1,7 +1,7 @@
 '''
 Created on 2012-11-22
     Single Process Crawler
-@author: 
+@author: roger.luo
 '''
 
 from bs4 import BeautifulSoup
