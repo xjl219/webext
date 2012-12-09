@@ -10,7 +10,7 @@ import re
 class contentExtractor():
     """Main content extractor"""
     def __init__(self,page):
-        self.text = BeautifulSoup(page)
+        self.text = BeautifulSoup(page,'lxml')
         self.segments = []
 
     def getSegement(self):
@@ -28,12 +28,12 @@ class contentExtractor():
         return segements
 
     def rmvJunk(self):
-        scripts = self.text.find_all(['script','style'])
+        scripts = self.text.find_all(['script','style','noscript'])
         for script in scripts:
             script.decompose()
         elems = self.text.find('body').find_all(['p','div'])
         for elem in elems:
-            if len(elem.get_text()) < 2 and elem.img == None:
+            if len(elem.get_text()) < 1 and elem.img == None:
                 elem.extract()
 
     def trimAll(self,segement):
@@ -56,3 +56,25 @@ class contentExtractor():
                 return True
             else:
                 return True
+
+class domTree():
+    
+    def __init__(self,page):
+        self.soup = BeautifulSoup(page,'lxml')
+        self.tree = dict()
+    
+    def findMaxNode(self):
+        pass    
+    
+    def backTraceTree(self):
+        pass
+    
+    def getConSegs(self):
+        for tag in self.soup.find_all(re.compile("script$|style$")):
+            tag.decompose()
+          
+with open("../../../../train_data/1/1.htm") as fpage:
+    page = fpage.read()   
+    
+dom = domTree(page)
+segs = dom.getConSegs()

@@ -3,92 +3,76 @@ Created on 2012-11-27
 
 @author: roger.luo
 '''
-
-import os 
-import re
 import MySQLdb
 import pickle
+from sklearn.ensemble import RandomForestClassifier
+from numpy import savetxt
 
-def path_to_file(root):
-    root = root + '/'
-    for di in os.listdir(root):
-        dpath = root + di
-        if os.path.isdir(dpath):
-            path_to_file(dpath)
-        else:        
-           if str(".txt") in dpath:
-                pathdic.append(dpath)
+from roger.webext.db import Connect
+from roger.webext.learn import GenFeatures
 
-def getRecord_from_xml(xml):
-    pass
-
-def getRecord_from_file(file):
-    rdic = dict()
-    lines = list()
-    with open(file) as df:
-        for line in  df.readlines():
-            if len(line.strip()) > 0:
-                lines.append(line.strip())
-    rdic['name'] = lines[1]
-    rdic['url'] = lines[2][5:]
-
-    dr = 0
-    for i in range(len(lines)):
-        if re.match('^directions:',lines[i].lower()) != None:
-          dr = i
-          break
-    rdic['material'] = lines[4:dr]
-    rdic['process'] = lines[dr+1:]   
-    return rdic
-
-def store_record(pathdic):
+def getTrainData():
+    mat = list()
+    proces = list()
     try:
-        conn=MySQLdb.connect(host='localhost',user='root',passwd='lab123',port=3306)
-        conn.select_db("recipe")
-        cur=conn.cursor()
-        i = 1
-        for path in pathdic:
-            record = getRecord_from_file(path)
-            cur.execute('insert into train_recipse values(%s,%s,%s,%s,%s)',
-                        [i,pickle.dumps(record['name']),pickle.dumps(record['url']),pickle.dumps(record['material']),pickle.dumps(record['process'])])
-            i = i + 1
-        conn.commit()
-        cur.close()
-        conn.close()
+        db = Connect.db('recipe')
+        db.db_connect()
+        results = db.db_query("train_recipse")
+        db.db_close()
     except MySQLdb.Error,e:
-            print "Mysql Error %d: %s" % (e.args[0], e.args[1])
-    
-def get_record(id):
-    try:
-        conn=MySQLdb.connect(host='localhost',user='root',passwd='lab123',port=3306)
-        conn.select_db("recipe")
-        cur=conn.cursor()
-        count=cur.execute('select * from train_recipse where id_rec = %s',id)
-        results=cur.fetchall()
-        conn.commit()
-        cur.close()
-        conn.close()
-    except MySQLdb.Error,e:
-            print "Mysql Error %d: %s" % (e.args[0], e.args[1])
-            results = None
-    return results
+        print "Mysql Error %d: %s" % (e.args[0], e.args[1])
+    for result in results:         
+        mat.append(pickle.loads(result[3]))
+        proces.append(pickle.loads(result[4]))
+    return mat,proces
 
-def get_all():
-    try:
-        conn=MySQLdb.connect(host='localhost',user='root',passwd='lab123',port=3306)
-        conn.select_db("recipe")
-        cur=conn.cursor()
-        count=cur.execute('select * from train_recipse')
-        results=cur.fetchall()
-        conn.commit()
-        cur.close()
-        conn.close()
-    except MySQLdb.Error,e:
-            print "Mysql Error %d: %s" % (e.args[0], e.args[1])
-            results = None
-    return results   
-   
-#pathdic = list()
-#root = '../../../../train_data'               
-#path_to_file(root)
-#store_record(pathdic)
+def getTrainMatrix():
+    mat,proces = getTrainData()
+    keys = GenFeatures.getDomainKeys()
+    matrix = list()
+    for ma in mat:
+        for m in ma:
+            tmp = []
+            gdf = GenFeatures.genDomainFeatures(m,keys)
+            gcf = GenFeatures.genCommFeatures(m)
+            dfd = gdf.getFeatureDict()
+            cfd = gcf.getFeatureDict()
+            for f in dfd:
+                tmp.append(dfd[f])
+            for f in cfd:
+                tmp.append(cfd[f])
+            tmp.append(1)
+            matrix.append(tmp)
+            tmp = []
+    for pro in proces:
+        for pr in pro:
+            tmp = []
+            gdf = GenFeatures.genDomainFeatures(pr,keys)
+            gcf = GenFeatures.genCommFeatures(pr)
+            dfd = gdf.getFeatureDict()
+            cfd = gcf.getFeatureDict()
+            for f in dfd:
+                tmp.append(dfd[f])
+            for f in cfd:
+                tmp.append(cfd[f])
+            tmp.append(0)
+            matrix.append(tmp)
+            tmp = []
+    return matrix
+                      
+def main():
+    #create the training & test sets, skipping the header row with [1:]  
+    matrix = getTrainMatrix()
+    target = [x[-1] for x in matrix]
+    train = [x[:-1] for x in matrix]
+    test = train
+    #create and train the random forest
+    #multi-core CPUs can use: rf = RandomForestClassifier(n_estimators=100, n_jobs=2)
+    rf = RandomForestClassifier(n_estimators=100)
+    rf.fit(train, target)
+    predicted_probs = [x[1] for x in rf.predict_proba(test)]
+
+    savetxt('submission.csv', predicted_probs, delimiter=',', fmt='%f')
+
+#if __name__=="__main__":
+main()

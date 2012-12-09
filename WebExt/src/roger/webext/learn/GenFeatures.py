@@ -3,97 +3,103 @@ Created on 2012-11-22
 
 @author: roger.luo
 '''
+import os
 import re
+import nltk
+from nltk.tokenize import RegexpTokenizer, wordpunct_tokenize
 
 sdir = '../../../../domain_data/'
-def getKeys():
-    keywords = []
-    advs = []
-    with open(sdir+'accessory.txt') as ac:
-        for line in ac.readlines():
-            keywords.append(line.strip('\n'))
-    with open(sdir+'ingredient.txt') as ing:
-        for line in ing.readlines():
-            keywords.append(line.strip('\n'))
-    with open(sdir+'procedure.txt') as pro:
-        for line in pro.readlines():
-            advs.append(line.strip('\n'))   
-    with open(sdir+'tools.txt') as to:
-        for line in to.readlines():
-            keywords.append(line.strip('\n')) 
-    return [keywords,advs]
 
-class genFeatures():
+def getDomainKeys():
+    keys = dict()
+    keyvalues = list()
+    for di in os.listdir(sdir):
+        with open(sdir+di) as f:
+            for line in f.readlines():
+                keyvalues.append(line.strip().lower())
+        keys[di[:-4]] = keyvalues
+        keyvalues = []
+    return keys
+
+class genDomainFeatures():
     
-    def __init__(self,segs,keys):
-        self.segs = segs
-        self.scoreMatrix = dict()
+    def __init__(self,seg,keys):
+        self.seg = seg
+        self.featureDict = dict()
         self.keys = keys 
     
-    def initScoreMatrix(self):
-        for seg in self.segs:
-            kwratio = self.kwRatio(seg,self.keys[0])
-            kwpos = self.kwPos(seg,self.keys[0])
-            digitpos = self.digitPos(seg)
-            contratio = self.conRatio(seg)
-            advratio = self.advRatio(seg,self.keys[1])
-
-            self.scoreMatrix[seg] = [kwratio,kwpos,digitpos,contratio,advratio]
+    def getFeatureDict(self):
+        self.countRatio()
+        self.allKeysRatio()
+        return self.featureDict
+        
+    def countRatio(self):
+        tokenp = wordpunct_tokenize(self.seg)
+        tokenizer = RegexpTokenizer('\s+',gaps=True)
+        tokens = tokenizer.tokenize(self.seg)
+        l = len(tokens)
+        for key in self.keys:
+            coms = [elem for elem in tokenp if elem.lower() in self.keys[key]]
+            ratio = len(coms) * 1.0 / l
+            self.featureDict[key+'_countRatio'] = ratio
+                 
+    def allKeysRatio(self):
+        tokenp = wordpunct_tokenize(self.seg)
+        tokenizer = RegexpTokenizer('\s+',gaps=True)
+        tokens = tokenizer.tokenize(self.seg)
+        keyset = set()
+        for key in self.keys:
+            keyset = keyset.union(set(self.keys[key]))
+        coma = [elem for elem in tokenp if elem.lower() in keyset]
+        self.featureDict['all_Ratio'] = len(coma) * 1.0 / len(tokens)
+            
     
-    def getScoreMatrix(self):
-        self.initScoreMatrix()
-        return self.scoreMatrix
-
-    def kwRatio(self,seg,keywords):
-        leng = len(seg)
-        num = 0
-        for kw in keywords:
-            if kw in seg:
-                num = num + 1
-        kwratio = num * 1.0 / leng
-        return kwratio
-
-    def kwPos(self,seg,keywords):
-        leng = len(seg)
-        pos = 0
-        num = 0
-        kavrpos = 0
-        for kw in keywords:
-            if kw in seg:
-                pos = seg.find(kw) + pos
-                num = num + 1
-        if num != 0:
-            kavrpos = pos * 1.0 / (num * leng)
-        return kavrpos
-                
-    def digitPos(self,seg):
-        prevpos = 0
-        pos = 0
-        num = 0
-        avrpos = 0
-        digit = re.findall('\d+',seg)
-        for d in digit:    
-            pos = seg.find(d) - prevpos - len(d) + pos
-            prevpos = seg.find(d,0)
-            num = num + 1
-        if num != 0:
-            avrpos = pos * 1.0 / num 
-        return avrpos
-
-    def conRatio(self,seg):
-        leng = len(seg)
-        con = leng - len(re.findall('\W',seg)) + len(re.findall(' ',seg))
-        contratio = con * 1.0 / leng
-        return contratio
-
-    def advRatio(self,seg,advwords):
-        leng = len(seg)
-        num = 0
-        for aw in advwords:
-            if aw in seg:
-                num = num + 1
-        advratio = num * 1.0 / leng
-        return advratio
-    def lanFeature(self):
-        import nltk
-        print nltk.doctest
+class genCommFeatures():
+    
+    def __init__(self,seg):
+        self.seg = seg
+        self.featureDict = dict()
+    
+    def getFeatureDict(self):
+        self.commaRatio()
+        self.endWithComma()
+        self.nunAndVerbRatio()
+        return self.featureDict
+    
+    def commaRatio(self):   
+        tokenp = wordpunct_tokenize(self.seg)
+        tokenizer = RegexpTokenizer('\s+',gaps=True)
+        tokens = tokenizer.tokenize(self.seg)
+        num = len(tokenp) - len(tokens)
+        self.featureDict['commaRatio'] = num *1.0/len(tokenp)
+    
+    def startWithDigit(self):
+        if re.search('^\d',self.seg):
+            self.featureDict['startWithDigit'] = 1
+        else:
+            self.featureDict['startWithDigit'] = 0
+    
+    def endWithComma(self):
+        if re.search('\W$',self.seg):
+            self.featureDict['endWithComma'] = 1
+        else:
+            self.featureDict['endWithComma'] = 0
+    
+    def nunAndVerbRatio(self):
+        token = wordpunct_tokenize(self.seg)
+        tag = nltk.pos_tag(token)
+        nnum = 0
+#        vnum = 0
+        for t in tag:
+            if re.search('^N',t[1]):
+                nnum = nnum + 1
+#            if re.search('^V',t[1]):
+#                vnum = vnum + 1
+        tokenizer = RegexpTokenizer('\s+',gaps=True)
+        tokens = tokenizer.tokenize(self.seg)
+        self.featureDict['nunRatio'] = nnum * 1.0 /(len(tokens))
+#        self.featureDict['verbNum'] = vnum
+        if len(tag) > 3 and re.search('LS',tag[0][1]) and (re.search('N',tag[1][1]) or re.search('N',tag[2][1])):
+            self.featureDict['simpleGram'] = 1
+        else:
+            self.featureDict['simpleGram'] = 0
