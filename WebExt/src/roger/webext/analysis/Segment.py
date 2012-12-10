@@ -7,10 +7,10 @@ from bs4 import BeautifulSoup
 import bs4
 import re
 
-class contentExtractor():
+class contentExtractor():#for chinese
     """Main content extractor"""
     def __init__(self,page):
-        self.text = BeautifulSoup(page,'lxml')
+        self.text = BeautifulSoup(page)
         self.segments = []
 
     def getSegement(self):
@@ -60,7 +60,7 @@ class contentExtractor():
 class domTree():
     
     def __init__(self,page):
-        self.soup = BeautifulSoup(page,'lxml')
+        self.soup = BeautifulSoup(page)#can use 'lxml' 'html5lib' parser and others
         self.tree = dict()
     
     def findMaxNode(self):
@@ -68,13 +68,71 @@ class domTree():
     
     def backTraceTree(self):
         pass
+ 
+ 
+class contentSegsFromRule():
+    
+    def __init__(self,page):    
+        self.soup = BeautifulSoup(page)
+        self.segs = list()
     
     def getConSegs(self):
         for tag in self.soup.find_all(re.compile("script$|style$")):
             tag.decompose()
-          
+        for tag in self.soup.find_all(['span','b','em','strong','u','br']):
+            tag.unwrap()
+        for tag in self.soup.find_all(self.bigLTTRatio):
+            tag.extract()
+        for tag in self.soup.find_all('img'):
+            tag.extract()
+        for tag in self.soup.find_all('a'):
+            tag.extract()
+        for tag in self.soup.find_all(self.contentLeafTag):
+            st = tag.getText(strip=True)
+            if len(st) > 0:
+                self.segs.append(st)
+        return self.segs
+
+    def contentLeafTag(self,tag):
+        if tag.name in set(['p','div','li','ul']) or re.match("^h[1-6]",tag.name):
+            if(tag.descendants != None):
+                for child in tag.descendants:
+                    if isinstance(child,bs4.element.Tag):
+                        if child.name in set(['p','div','li','ul']) or re.match("^h[1-6]",tag.name):
+                            return False
+                        else:
+                            continue
+                return True
+            else:
+                return True
+            
+    def bigLTTRatio(self,tag):
+        if tag.name in set(['p','div','li','ul']):
+            if(tag.descendants != None):
+                nn = 0
+                an = 0
+                for child in tag.descendants:
+                    if isinstance(child,bs4.element.Tag):
+                        nn = nn + 1
+                        if child.name == 'a':
+                            an = an + 1
+                if nn != 0 and (an * 1.0 / nn >  0.5):
+                    return True
+
+
+from roger.webext.util import Util
+   
 with open("../../../../train_data/1/1.htm") as fpage:
     page = fpage.read()   
     
-dom = domTree(page)
-segs = dom.getConSegs()
+csfr = contentSegsFromRule(page)
+segs = csfr.getConSegs()
+lines = []
+with open("../../../../train_data/1/1.txt") as fpage:
+    for line in  fpage.readlines():
+        lines.append(line.strip())
+for seg in segs:
+    for line in lines:
+        if Util.levenshteinDist(seg,line) < 5:
+            print seg
+       
