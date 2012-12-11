@@ -7,7 +7,7 @@ from bs4 import BeautifulSoup
 import bs4
 import re
 
-class contentExtractor():#for chinese
+class contentExtractor():   #for chinese
     """Main content extractor"""
     def __init__(self,page):
         self.text = BeautifulSoup(page)
@@ -90,7 +90,7 @@ class contentSegsFromRule():
         for tag in self.soup.find_all(self.contentLeafTag):
             st = tag.getText(strip=True)
             if len(st) > 0:
-                self.segs.append(st)
+                self.segs.append(repr(' '.join(st.split())))
         return self.segs
 
     def contentLeafTag(self,tag):
@@ -106,6 +106,7 @@ class contentSegsFromRule():
             else:
                 return True
             
+            
     def bigLTTRatio(self,tag):
         if tag.name in set(['p','div','li','ul']):
             if(tag.descendants != None):
@@ -119,20 +120,3 @@ class contentSegsFromRule():
                 if nn != 0 and (an * 1.0 / nn >  0.5):
                     return True
 
-
-from roger.webext.util import Util
-   
-with open("../../../../train_data/1/1.htm") as fpage:
-    page = fpage.read()   
-    
-csfr = contentSegsFromRule(page)
-segs = csfr.getConSegs()
-lines = []
-with open("../../../../train_data/1/1.txt") as fpage:
-    for line in  fpage.readlines():
-        lines.append(line.strip())
-for seg in segs:
-    for line in lines:
-        if Util.levenshteinDist(seg,line) < 5:
-            print seg
-       

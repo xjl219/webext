@@ -5,12 +5,72 @@ Created on 2012-11-27
 '''
 import MySQLdb
 import pickle
+import os
 from sklearn.ensemble import RandomForestClassifier
 from numpy import savetxt
 
 from roger.webext.db import Connect
 from roger.webext.learn import GenFeatures
+from roger.webext.util import Util
+from roger.webext.analysis import Segment
+from roger.webext.db import LoadFromFile
 
+hpathdic = list()
+tpathdic = list()
+root = '../../../../train_data' 
+
+def path_to_file(root):
+    root = root + '/'
+    for di in os.listdir(root):
+        dpath = root + di
+        if os.path.isdir(dpath):
+            path_to_file(dpath)
+        else:
+            if str('.txt') in dpath: 
+                tpathdic.append(dpath)
+            else:  
+                hpathdic.append(dpath)
+
+def getMatrixFromFile():
+    matrix = list()
+    path_to_file(root)
+    keys = GenFeatures.getDomainKeys()
+    for i in range(len(tpathdic)-44):   
+        with open(hpathdic[i]) as fpage:
+            page = fpage.read()   
+        csfr = Segment.contentSegsFromRule(page)
+        segs = csfr.getConSegs()
+        trecord = LoadFromFile.getRecord_from_file(tpathdic[i])
+        mlines = trecord['material']
+        plines = trecord['process']
+        alines = []
+        for seg in segs:
+            for line in mlines:
+                if Util.levenshteinDist(seg,' '.join(line.split())) < 5:
+                    matrix.append(getVector(seg,keys,0))
+                    alines.append(seg)
+            for line in plines:
+                if Util.levenshteinDist(seg,' '.join(line.split())) < 5:
+                    matrix.append(getVector(seg,keys,1))
+                    alines.append(seg)                   
+        for seg in segs:
+            if seg not in alines:
+                matrix.append(getVector(seg,keys,3))                    
+    return matrix
+                                   
+def getVector(seg,keys,c):
+    vec = list()
+    gdf = GenFeatures.genDomainFeatures(seg,keys)
+    gcf = GenFeatures.genCommFeatures(seg)
+    dfd = gdf.getFeatureDict()
+    cfd = gcf.getFeatureDict()
+    for f in dfd:
+        vec.append(dfd[f])
+    for f in cfd:
+        vec.append(cfd[f])   
+    vec.append(c)
+    return vec     
+ 
 def getTrainData():
     mat = list()
     proces = list()
@@ -25,8 +85,8 @@ def getTrainData():
         mat.append(pickle.loads(result[3]))
         proces.append(pickle.loads(result[4]))
     return mat,proces
-
-def getTrainMatrix():
+    
+def getMatrix():
     mat,proces = getTrainData()
     keys = GenFeatures.getDomainKeys()
     matrix = list()
@@ -59,10 +119,10 @@ def getTrainMatrix():
             matrix.append(tmp)
             tmp = []
     return matrix
-                      
+ 
 def main():
     #create the training & test sets, skipping the header row with [1:]  
-    matrix = getTrainMatrix()
+    matrix = getMatrixFromFile()
     target = [x[-1] for x in matrix]
     train = [x[:-1] for x in matrix]
     test = train
@@ -75,4 +135,5 @@ def main():
     savetxt('submission.csv', predicted_probs, delimiter=',', fmt='%f')
 
 #if __name__=="__main__":
-main()
+#main()
+getMatrixFromFile()
