@@ -35,7 +35,9 @@ def getMatrixFromFile():
     matrix = list()
     path_to_file(root)
     keys = GenFeatures.getDomainKeys()
-    for i in range(len(tpathdic)-44):   
+    for i in range(len(tpathdic)):   
+        print hpathdic[i]
+        print tpathdic[i]
         with open(hpathdic[i]) as fpage:
             page = fpage.read()   
         csfr = Segment.contentSegsFromRule(page)
@@ -45,6 +47,7 @@ def getMatrixFromFile():
         plines = trecord['process']
         alines = []
         for seg in segs:
+            print seg
             for line in mlines:
                 if Util.levenshteinDist(seg,' '.join(line.split())) < 5:
                     matrix.append(getVector(seg,keys,0))
