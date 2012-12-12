@@ -23,15 +23,14 @@ class contentExtractor():   #for chinese
             sl = len(str(segement)) - len(str(segement.get_text().encode('utf-8'))) + leng
             ratio = leng * 1.0 / sl
             if ratio > 0.2:
-                segements.append(seg)
-
+                segements.append(repr(' '.join(seg.split())))
         return segements
 
     def rmvJunk(self):
         scripts = self.text.find_all(['script','style','noscript'])
         for script in scripts:
             script.decompose()
-        elems = self.text.find('body').find_all(['p','div'])
+        elems = self.text.find('body').find_all(['p','div','li','ul','ol'])
         for elem in elems:
             if len(elem.get_text()) < 1 and elem.img == None:
                 elem.extract()
@@ -45,11 +44,11 @@ class contentExtractor():   #for chinese
         return seg,leng
 
     def isLeafContentTag(self,tag):
-        if tag.name in set(['p','div']) or re.match("^h[1-6]",tag.name):
+        if tag.name in set(['p','div','li','ul','ol']) or re.match("^h[1-6]",tag.name):
             if(tag.descendants != None):
                 for child in tag.descendants:
                     if isinstance(child,bs4.element.Tag):
-                        if child.name in set(['p','div']) or re.match("^h[1-6]",tag.name):
+                        if child.name in set(['p','div','li','ul','ol']) or re.match("^h[1-6]",tag.name):
                             return False
                         else:
                             continue
@@ -94,11 +93,11 @@ class contentSegsFromRule():
         return self.segs
 
     def contentLeafTag(self,tag):
-        if tag.name in set(['p','div','li','ul']) or re.match("^h[1-6]",tag.name):
-            if(tag.descendants != None):
+        if tag.name in set(['p','div','li','ul','ol']) or re.match("^h[1-6]",tag.name):
+            if tag.descendants != None:
                 for child in tag.descendants:
                     if isinstance(child,bs4.element.Tag):
-                        if child.name in set(['p','div','li','ul']) or re.match("^h[1-6]",tag.name):
+                        if child.name in set(['p','div','li','ul','ol']) or re.match("^h[1-6]",tag.name):
                             return False
                         else:
                             continue
